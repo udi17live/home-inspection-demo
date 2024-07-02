@@ -13,10 +13,7 @@ class HomeInspectionDocumentController extends Controller
     {
         $template_path = storage_path('app/public/templates/inspection_template.docx');
 
-        $date_time_string = now()->toDateTimeString();
-        $unique_hash = md5($date_time_string);
-
-        $docx_path = storage_path("app/public/templates/generated_{$unique_hash}.docx");
+        $docx_path = storage_path("app/public/templates/generated.docx");
 
         $template_processor = new TemplateProcessor($template_path);
 
@@ -32,24 +29,18 @@ class HomeInspectionDocumentController extends Controller
         $template_processor->setValue('end_time', $request->input('end_time'));
 
 
-        $temp_docx_path = storage_path($docx_path);
-        $template_processor->saveAs($temp_docx_path);
+        $template_processor->saveAs($docx_path);
 
 
         ConvertApi::setApiSecret(env('CONVERT_API_KEY', null));
         $result = ConvertApi::convert('pdf', [
-                'File' => $temp_docx_path,
+                'File' => $docx_path,
             ], 'docx'
         );
 
-        $path = storage_path("app/public/templates/result_{$unique_hash}.pdf");
+        $path = storage_path("app/public/templates/result.pdf");
         $result->saveFiles($path);
 
-        $response = Response::download($path, "inspection_document_{$unique_hash}.pdf")->deleteFileAfterSend(true);
-
-        unlink($path);
-        unlink($docx_path);
-
-        return $response;
+        return Response::download($path, "inspection_document.pdf")->deleteFileAfterSend(true);
     }
 }
