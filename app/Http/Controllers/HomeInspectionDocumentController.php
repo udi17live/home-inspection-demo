@@ -11,16 +11,15 @@ class HomeInspectionDocumentController extends Controller
 {
     public function generate(Request $request)
     {
-        // Path to the PDF template
         $template_path = storage_path('app/public/templates/inspection_template.docx');
 
-        // Temp Path to store the generated PDF
-        $pdf_path = storage_path('app/public/templates/generated.pdf');
+        $date_time_string = now()->toDateTimeString();
+        $unique_hash = md5($date_time_string);
 
-        // Load the DOCX template
+        $docx_path = storage_path("app/public/templates/generated_{$unique_hash}.docx");
+
         $template_processor = new TemplateProcessor($template_path);
 
-        // Replace the merge fields with the input data
         $template_processor->setValue('address', $request->input('address'));
         $template_processor->setValue('contact_name', $request->input('contact_name'));
         $template_processor->setValue('phone_number', $request->input('phone_number'));
@@ -32,22 +31,25 @@ class HomeInspectionDocumentController extends Controller
         $template_processor->setValue('start_time', $request->input('start_time'));
         $template_processor->setValue('end_time', $request->input('end_time'));
 
-        // Save the modified DOCX to a temporary location
-        $temp_docx_path = storage_path('app/public/generated.docx');
+
+        $temp_docx_path = storage_path($docx_path);
         $template_processor->saveAs($temp_docx_path);
 
-        // Load the modified DOCX
-        // $phpWord = \PhpOffice\PhpWord\IOFactory::load($temp_docx_path);
 
-        ConvertApi::setApiSecret('EnEev1OtGFW2uxY9');
+        ConvertApi::setApiSecret(env('CONVERT_API_KEY', null));
         $result = ConvertApi::convert('pdf', [
                 'File' => $temp_docx_path,
             ], 'docx'
         );
 
-        $path = storage_path('app/public/templates/result.pdf');
+        $path = storage_path("app/public/templates/result_{$unique_hash}.pdf");
         $result->saveFiles($path);
 
-        return Response::download($path, 'document.pdf')->deleteFileAfterSend(true);
+        $response = Response::download($path, "inspection_document_{$unique_hash}.pdf")->deleteFileAfterSend(true);
+
+        unlink($path);
+        unlink($docx_path);
+
+        return $response;
     }
 }
